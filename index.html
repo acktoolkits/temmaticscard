@@ -3023,8 +3023,10 @@ function gasTitles(){
     $('#authTitle').textContent='Buat PIN';
     $('#authSub').textContent='PIN dipakai untuk masuk lagi di perangkat ini, tanpa kode email.';
   }else if(S.authMode==='masuk'){
-    $('#authSub').textContent=hasTok()?'Masukkan nomor WhatsApp dan PIN kamu.':'Perangkat ini belum dikenal. Kode verifikasi akan dikirim ke email kamu.';
+    $('#authTitle').textContent='Selamat datang Temmatics';
+    $('#authSub').textContent='';
   }
+  $('#authSub').hidden=!$('#authSub').textContent;
 }
 function gasModeSync(){
   AU.step='start';authStep('start');gasTitles();
