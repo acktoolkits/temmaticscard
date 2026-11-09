@@ -1,5 +1,5 @@
 /* Temmatics Card - service worker. VERSI diganti otomatis oleh build. */
-var VERSI='a9b5b17f72';
+var VERSI='9784c244d6';
 var CACHE_INTI='temmatics-inti-'+VERSI;
 var CACHE_LUAR='temmatics-luar-v1';
 var INTI=['./','index.html','config.js','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/favicon-32.png'];
@@ -16,7 +16,7 @@ self.addEventListener('activate',function(e){
 });
 
 function jaringanDulu(req,cacheName){
-  return fetch(req).then(function(res){
+  return fetch(req,{cache:'no-cache'}).then(function(res){
     if(res&&res.ok){var cp=res.clone();caches.open(cacheName).then(function(c){c.put(req,cp)})}
     return res;
   }).catch(function(){
@@ -40,7 +40,7 @@ self.addEventListener('fetch',function(e){
   if(/(^|\.)script\.google(usercontent)?\.com$/.test(u.hostname))return;
   if(u.origin===location.origin){
     if(req.mode==='navigate'){
-      e.respondWith(fetch(req).then(function(res){
+      e.respondWith(fetch(req.url,{cache:'no-cache'}).then(function(res){
         if(res&&res.ok){var cp=res.clone();caches.open(CACHE_INTI).then(function(c){c.put('./',cp)})}
         return res;
       }).catch(function(){return caches.match('./')}));
