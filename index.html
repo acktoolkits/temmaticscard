@@ -1389,8 +1389,8 @@ function setAuthMode(m){
 }
 function renderAuth(){
   $('#authBrand').innerHTML=wordmark(S.cfg.brand);
-  $('#authTitle').textContent=S.authMode==='masuk'?'Selamat datang kembali':'Buat kartu member';
-  $('#authSub').textContent=S.authMode==='masuk'?'Masuk dengan nomor WhatsApp untuk membuka kartu member kamu.':'Daftar sekali, kartu member digitalmu langsung siap dipakai.';
+  $('#authTitle').textContent=S.authMode==='masuk'?'Selamat datang Temmatics':'Buat kartu member';
+  $('#authSub').textContent=S.authMode==='masuk'?'':'Daftar sekali, kartu member digitalmu langsung siap dipakai.';
   if(GAS_UI&&typeof gasTitles==='function')gasTitles();
 }
 $('#m-masuk').addEventListener('click',function(){setAuthMode('masuk')});
@@ -3129,7 +3129,7 @@ async function doStart(){
     authSay(r.left>0?'PIN salah. Sisa percobaan: '+r.left+'.':'PIN salah. Percobaan habis, coba lagi 15 menit lagi atau ketuk Lupa PIN.');
     $('#cPinIn').value='';shake($('#authForm'));$('#cPinIn').focus();return;
   }
-  if(r.s==='new_device'){toast('Perangkat ini belum dikenal untuk nomor ini. Kode dikirim ke email.');$('#cPinIn').value='';await sendLoginOtp(phone,'login');return}
+  if(r.s==='new_device'){$('#cPinIn').value='';await sendLoginOtp(phone,'login');return}
   if(r.s==='none'){setAuthMode('daftar');authSay('Nomor ini belum terdaftar. Isi data di bawah untuk membuat kartu.');$('#nameIn').focus();return}
   if(r.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
   authSay('Belum bisa melanjutkan. Coba lagi.');
