@@ -1,5 +1,5 @@
 /* Temmatics Card - service worker. VERSI diganti otomatis oleh build. */
-var VERSI='78bb1c0193';
+var VERSI='94fad6bb60';
 var CACHE_INTI='temmatics-inti-'+VERSI;
 var CACHE_LUAR='temmatics-luar-v1';
 var INTI=['./','index.html','config.js','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/favicon-32.png'];
@@ -40,7 +40,10 @@ self.addEventListener('fetch',function(e){
   if(/(^|\.)script\.google(usercontent)?\.com$/.test(u.hostname))return;
   if(u.origin===location.origin){
     if(req.mode==='navigate'){
-      e.respondWith(jaringanDulu(new Request('index.html'),CACHE_INTI).catch(function(){return caches.match('./')}));
+      e.respondWith(fetch(req).then(function(res){
+        if(res&&res.ok){var cp=res.clone();caches.open(CACHE_INTI).then(function(c){c.put('./',cp)})}
+        return res;
+      }).catch(function(){return caches.match('./')}));
       return;
     }
     e.respondWith(jaringanDulu(req,CACHE_INTI));      // aplikasi & config.js: selalu coba versi terbaru
