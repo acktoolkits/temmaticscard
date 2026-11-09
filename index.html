@@ -75,6 +75,7 @@ input,select{width:100%;min-width:0;border:1px solid var(--line);background:var(
 .auth .panel{padding:14px;gap:10px;border-radius:14px}
 .auth .field label{font-size:12.5px}
 .auth input{padding:10px 12px;font-size:15px}
+.pinin{letter-spacing:.3em;font-size:18px!important;text-align:center}
 .otplinks{display:flex;justify-content:space-between;gap:10px;margin:0}
 .otplinks .linkbtn{background:none;border:0;padding:4px 0;font-size:13.5px;font-weight:600;color:var(--stamp);cursor:pointer}
 .otplinks .linkbtn:disabled{color:var(--muted);cursor:default}
@@ -429,6 +430,20 @@ body.mg{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <input id="otpIn" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="6 angka" style="letter-spacing:.25em;font-size:18px;text-align:center">
           <p class="hint" id="otpHint"></p>
         </div>
+        <div class="field" id="cPinField" hidden>
+          <label for="cPinIn">PIN</label>
+          <input id="cPinIn" class="pinin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="6 angka">
+        </div>
+        <div class="field" id="cNewField" hidden>
+          <label for="cNewPin" id="cNewLbl">Buat PIN</label>
+          <input id="cNewPin" class="pinin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 angka">
+          <p class="hint">PIN dipakai untuk masuk lagi di perangkat ini, tanpa kode email.</p>
+        </div>
+        <div class="field" id="cNew2Field" hidden>
+          <label for="cNewPin2">Ulangi PIN</label>
+          <input id="cNewPin2" class="pinin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 angka">
+        </div>
+        <p class="otplinks" id="pinLinks" hidden><button type="button" class="linkbtn" id="forgotBtn">Lupa PIN?</button><button type="button" class="linkbtn" id="emailLoginBtn">Pakai kode email</button></p>
         <p class="otplinks" id="otpLinks" hidden><button type="button" class="linkbtn" id="otpResend">Kirim ulang kode</button><button type="button" class="linkbtn" id="otpBack">Ganti nomor</button></p>
         <p class="err" id="authMsg" hidden></p>
         <button class="btn big" id="authBtn" type="submit">Masuk</button>
@@ -980,7 +995,7 @@ function makeGasStore(url){
     if(document.hidden){schedule(2000);return}
     inflight=true;
     try{
-      var staff=staffMode(),o={a:'sync',t:curTok()};
+      var staff=staffMode(),o={a:'sync',t:(staff||me.code)?curTok():''};
       if(staff){o.since=since}else if(me.code){o.meV=me.v}
       var r=await post(o);
       bad=0;
@@ -1127,18 +1142,34 @@ function makeGasStore(url){
   function label(){return String(navigator.userAgent||'').slice(0,60)}
   function setMemberTok(t){tokM=t;ls.set('lc:tok',t)}
   api.hasToken=function(){return !!tokM};
-  api.loginStart=async function(phone){
-    var r=await call({a:'login.start',phone:phone,t:tokM},{noAuthLost:true});
+  api.loginStart=async function(phone,purpose){
+    var r=await call({a:'login.start',phone:phone,purpose:purpose||'login'},{tok:false});
     if(r.ok===false)throw fail(r);return r;
   };
+  api.loginPin=async function(phone,pin){
+    var r=await call({a:'login.pin',phone:phone,pin:pin,t:tokM},{noAuthLost:true});
+    if(r.ok===false)throw fail(r);
+    if(r.s==='ok'){me.doc=null;me.v=0}
+    return r;
+  };
   api.loginVerify=async function(phone,otp){
-    var r=await call({a:'login.verify',phone:phone,otp:otp,label:label()},{tok:false});
+    var r=await call({a:'login.verify',phone:phone,otp:otp,label:label(),t:tokM},{tok:false});
     if(r.ok===false)throw fail(r);
     if(r.s==='ok'&&r.tok){setMemberTok(r.tok);me.doc=null;me.v=0}
     return r;
   };
+  api.pinReset=async function(phone,otp,pin){
+    var r=await call({a:'pin.reset',phone:phone,otp:otp,pin:pin,label:label(),t:tokM},{tok:false});
+    if(r.ok===false)throw fail(r);
+    if(r.s==='ok'&&r.tok){setMemberTok(r.tok);me.doc=null;me.v=0}
+    return r;
+  };
+  api.setMyPin=async function(pin){
+    var r=await call({a:'me.pin',pin:pin,t:tokM});
+    if(r.ok===false)throw fail(r);return r;
+  };
   api.regStart=async function(o){
-    var r=await call({a:'reg.start',name:o.name,phone:o.phone,email:o.email},{tok:false});
+    var r=await call({a:'reg.start',name:o.name,phone:o.phone,email:o.email,pin:o.pin},{tok:false});
     if(r.ok===false)throw fail(r);return r;
   };
   api.regVerify=async function(phone,otp){
@@ -1147,10 +1178,8 @@ function makeGasStore(url){
     if(r.s==='ok'&&r.tok){setMemberTok(r.tok);me.doc=null;me.v=0}
     return r;
   };
-  api.memberLogout=function(){
-    var t=tokM;tokM='';ls.del('lc:tok');me={code:null,doc:null,v:0};
-    if(t)post({a:'logout',t:t}).catch(function(){});
-  };
+  /* keluar = menutup tampilan saja; perangkat tetap dipercaya (masuk lagi cukup nomor + PIN) */
+  api.memberLogout=function(){me={code:null,doc:null,v:0}};
   api.staffLogin=async function(gate,pin,name){
     var r=await post({a:'staff.login',gate:gate,pin:pin,name:name});
     if(r.ok===false&&r.e==='locked')throw fail(r);
@@ -1362,6 +1391,7 @@ function renderAuth(){
   $('#authBrand').innerHTML=wordmark(S.cfg.brand);
   $('#authTitle').textContent=S.authMode==='masuk'?'Selamat datang kembali':'Buat kartu member';
   $('#authSub').textContent=S.authMode==='masuk'?'Masuk dengan nomor WhatsApp untuk membuka kartu member kamu.':'Daftar sekali, kartu member digitalmu langsung siap dipakai.';
+  if(GAS_UI&&typeof gasTitles==='function')gasTitles();
 }
 $('#m-masuk').addEventListener('click',function(){setAuthMode('masuk')});
 $('#m-daftar').addEventListener('click',function(){setAuthMode('daftar')});
@@ -2959,86 +2989,167 @@ async function boot(){
   if(S.me)openMember(S.me);else{setAuthMode('masuk');setCust('auth')}
   applyView();
 }
-/* ---------- UI untuk backend Apps Script: OTP email, PIN dicek server ---------- */
-var AU={step:'start',phone:'',reg:false,payload:null,resendT:0,resendAt:0};
+/* ---------- UI untuk backend Apps Script ----------
+   Email hanya untuk: daftar, perangkat baru, lupa PIN.
+   Perangkat yang sama (sudah dipercaya): nomor WhatsApp + PIN 6 angka. */
+var AU={step:'start',kind:'login',phone:'',code:'',payload:null,resendT:0,resendAt:0};
 function gasErr(err){return err&&err.code&&err.message&&err.code!=='server'&&err.code!=='crash'?err.message:'Tidak bisa terhubung. Periksa koneksi lalu coba lagi.'}
+function hasTok(){return !!(store&&store.hasToken&&store.hasToken())}
+function pinOk(v){return /^\d{6}$/.test(v)}
+function rememberPhone(){try{ls.set('lc:ph',$('#phoneIn').value.trim())}catch(e){}}
+function clearAuthPins(){['#cPinIn','#cNewPin','#cNewPin2','#otpIn'].forEach(function(k){$(k).value=''})}
 function authStep(st){
-  AU.step=st;var otp=st==='otp';
-  $('#nameField').hidden=otp||S.authMode!=='daftar';
-  $('#emailField').hidden=otp||S.authMode!=='daftar';
-  $('#phoneField').hidden=otp;
+  AU.step=st;
+  var start=st==='start',otp=st==='otp',np=st==='newpin',daftar=S.authMode==='daftar',tok=hasTok();
+  var forgot=otp&&AU.kind==='forgot';
+  $('#nameField').hidden=!(start&&daftar);
+  $('#emailField').hidden=!(start&&daftar);
+  $('#phoneField').hidden=!start;
   $('#otpField').hidden=!otp;$('#otpLinks').hidden=!otp;
-  $('#authBtn').textContent=otp?'Verifikasi':(S.authMode==='masuk'?'Masuk':'Buat kartu member');
-  if(!otp){clearInterval(AU.resendT);$('#otpIn').value=''}
+  $('#cPinField').hidden=!(start&&!daftar&&tok);
+  $('#pinLinks').hidden=!(start&&!daftar&&tok);
+  var showNew=(start&&daftar)||np||forgot;
+  $('#cNewField').hidden=!showNew;$('#cNew2Field').hidden=!showNew;
+  $('#cNewLbl').textContent=forgot?'PIN baru':'Buat PIN';
+  $('#authBtn').textContent=otp?(forgot?'Atur PIN dan masuk':'Verifikasi'):np?'Simpan PIN dan masuk':daftar?'Buat kartu member':(tok?'Masuk':'Kirim kode ke email');
+  if(start){clearInterval(AU.resendT);$('#otpIn').value=''}
 }
-function gasModeSync(){if(AU.step==='otp')AU.step='start';authStep(AU.step)}
-function showOtp(hint,existing){
+function gasTitles(){
+  var st=AU.step,k=AU.kind;
+  if(st==='otp'){
+    $('#authTitle').textContent=k==='forgot'?'Atur ulang PIN':k==='login'?'Perangkat baru':'Verifikasi email';
+    $('#authSub').textContent=k==='forgot'?'Masukkan kode dari email, lalu buat PIN baru.':k==='login'?'Demi keamanan, kami kirim kode ke email kamu.':'Cek email kamu, lalu masukkan kodenya di sini.';
+  }else if(st==='newpin'){
+    $('#authTitle').textContent='Buat PIN';
+    $('#authSub').textContent='PIN dipakai untuk masuk lagi di perangkat ini, tanpa kode email.';
+  }else if(S.authMode==='masuk'){
+    $('#authSub').textContent=hasTok()?'Masukkan nomor WhatsApp dan PIN kamu.':'Perangkat ini belum dikenal. Kode verifikasi akan dikirim ke email kamu.';
+  }
+}
+function gasModeSync(){
+  AU.step='start';authStep('start');gasTitles();
+  if(S.authMode==='masuk'){var ph=ls.get('lc:ph');if(ph&&!$('#phoneIn').value)$('#phoneIn').value=ph}
+}
+function showOtp(hint){
   authStep('otp');
+  var k=AU.kind;
   $('#otpHint').textContent='Kode 6 angka sudah dikirim ke '+hint+'. Berlaku 10 menit.';
-  $('#authSub').textContent='Cek email kamu, lalu masukkan kodenya di sini.';
-  $('#authTitle').textContent='Verifikasi email';
+  gasTitles();
   startResendTimer(45);
   setTimeout(function(){$('#otpIn').focus()},50);
+}
+function showNewPin(){
+  authStep('newpin');gasTitles();
+  $('#cNewPin').value='';$('#cNewPin2').value='';
+  setTimeout(function(){$('#cNewPin').focus()},50);
 }
 function startResendTimer(sec){
   var b=$('#otpResend');clearInterval(AU.resendT);AU.resendAt=Date.now()+sec*1000;
   function tick(){var left=Math.ceil((AU.resendAt-Date.now())/1000);if(left>0){b.disabled=true;b.textContent='Kirim ulang kode ('+left+')'}else{b.disabled=false;b.textContent='Kirim ulang kode';clearInterval(AU.resendT)}}
   tick();AU.resendT=setInterval(tick,1000);
 }
+function authSay(t){var m=$('#authMsg');m.textContent=t;m.hidden=false}
+function checkNewPins(){
+  var a=$('#cNewPin').value,b=$('#cNewPin2').value;
+  if(!pinOk(a)){authSay('PIN berisi 6 angka.');$('#cNewPin').focus();return null}
+  if(a!==b){authSay('Kedua PIN belum sama.');$('#cNewPin2').select();return null}
+  return a;
+}
+function finishLogin(code){
+  rememberPhone();AU.payload=null;clearAuthPins();authStep('start');openMember(code);
+}
+async function sendLoginOtp(phone,purpose){
+  var rs=await store.loginStart(phone,purpose);
+  AU.phone=phone;AU.payload={mode:'masuk',phone:phone};
+  if(rs.s==='none'){setAuthMode('daftar');authSay('Nomor ini belum terdaftar. Isi data di bawah untuk membuat kartu.');$('#nameIn').focus();return}
+  if(rs.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
+  if(rs.s==='noemail'){authSay('Kartu ini belum punya email terdaftar. Hubungi kasir Temma.');return}
+  if(rs.s==='otp'){AU.kind=purpose;showOtp(rs.hint);return}
+  authSay('Belum bisa melanjutkan. Coba lagi.');
+}
 async function gasAuth(){
-  var msg=$('#authMsg'),btn=$('#authBtn');
-  function say(t){msg.textContent=t;msg.hidden=false}
-  msg.hidden=true;
+  var btn=$('#authBtn');
+  $('#authMsg').hidden=true;
   var sc=/^\*([12])#$/.exec($('#phoneIn').value.trim());
-  if(AU.step!=='otp'&&sc){$('#phoneIn').value='';location.hash=sc[1]==='1'?'#kasir':'#manajemen';return}
-  if(AU.step==='otp'){
-    var code=$('#otpIn').value.replace(/\D/g,'');
-    if(code.length!==6){say('Masukkan 6 angka kode.');return}
-    btn.disabled=true;
-    try{
-      var r=AU.reg?await store.regVerify(AU.phone,code):await store.loginVerify(AU.phone,code);
-      if(r.s==='ok'){authStep('start');openMember(r.code);return}
-      if(r.s==='bad'){say('Kode salah. Sisa percobaan: '+r.left+'.');$('#otpIn').select();return}
-      if(r.s==='expired'){say('Kode sudah tidak berlaku. Minta kode baru.');return}
-      if(r.s==='none'){say('Kartu tidak ditemukan.');authStep('start');return}
-      say('Verifikasi belum berhasil. Coba lagi.');
-    }catch(err){say(gasErr(err))}
-    finally{btn.disabled=false}
-    return;
-  }
-  var phone=normPhone($('#phoneIn').value);
-  if(phone.length<10||phone.length>15){say('Nomor WhatsApp belum lengkap.');return}
-  var name=$('#nameIn').value.trim().replace(/\s+/g,' '),email=$('#emailIn').value.trim().toLowerCase();
-  if(S.authMode==='daftar'){
-    if(!name){say('Nama wajib diisi.');return}
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){say('Email belum benar. Dipakai untuk kode verifikasi.');return}
-  }
+  if(AU.step==='start'&&sc){$('#phoneIn').value='';location.hash=sc[1]==='1'?'#kasir':'#manajemen';return}
   btn.disabled=true;
   try{
-    var rs=S.authMode==='daftar'?await store.regStart({name:name,phone:phone,email:email}):await store.loginStart(phone);
-    AU.phone=phone;AU.payload={mode:S.authMode,name:name,phone:phone,email:email};
-    if(rs.s==='ok'){openMember(rs.code);return}
-    if(rs.s==='none'){setAuthMode('daftar');say('Nomor ini belum terdaftar. Isi nama dan email untuk membuat kartu.');$('#nameIn').focus();return}
-    if(rs.s==='inactive'){say('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
-    if(rs.s==='noemail'){say('Kartu ini belum punya email terdaftar. Hubungi kasir Temma.');return}
-    if(rs.s==='otp'){
-      AU.reg=S.authMode==='daftar'&&!rs.existing;
-      if(rs.existing)toast('Nomor ini sudah terdaftar. Kode dikirim ke email yang tersimpan.');
-      showOtp(rs.hint);return;
-    }
-    say('Belum bisa melanjutkan. Coba lagi.');
-  }catch(err){say(gasErr(err))}
+    if(AU.step==='otp')await doOtp();
+    else if(AU.step==='newpin')await doNewPin();
+    else await doStart();
+  }catch(err){authSay(gasErr(err))}
   finally{btn.disabled=false}
 }
+async function doOtp(){
+  var code=$('#otpIn').value.replace(/\D/g,'');
+  if(code.length!==6){authSay('Masukkan 6 angka kode.');return}
+  var r;
+  if(AU.kind==='forgot'){
+    var pin=checkNewPins();if(!pin)return;
+    r=await store.pinReset(AU.phone,code,pin);
+  }else r=AU.kind==='reg'?await store.regVerify(AU.phone,code):await store.loginVerify(AU.phone,code);
+  if(r.s==='ok'){
+    if(r.needPin){AU.code=r.code;rememberPhone();showNewPin();return}
+    finishLogin(r.code);return;
+  }
+  if(r.s==='bad'){authSay('Kode salah. Sisa percobaan: '+r.left+'.');$('#otpIn').select();return}
+  if(r.s==='expired'){authSay('Kode sudah tidak berlaku. Minta kode baru.');return}
+  if(r.s==='none'){authSay('Kartu tidak ditemukan.');authStep('start');return}
+  authSay('Verifikasi belum berhasil. Coba lagi.');
+}
+async function doNewPin(){
+  var pin=checkNewPins();if(!pin)return;
+  await store.setMyPin(pin);
+  finishLogin(AU.code);
+}
+async function doStart(){
+  var phone=normPhone($('#phoneIn').value);
+  if(phone.length<10||phone.length>15){authSay('Nomor WhatsApp belum lengkap.');return}
+  if(S.authMode==='daftar'){
+    var name=$('#nameIn').value.trim().replace(/\s+/g,' '),email=$('#emailIn').value.trim().toLowerCase();
+    if(!name){authSay('Nama wajib diisi.');return}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){authSay('Email belum benar. Dipakai untuk kode verifikasi.');return}
+    var pin=checkNewPins();if(!pin)return;
+    var rs=await store.regStart({name:name,phone:phone,email:email,pin:pin});
+    AU.phone=phone;AU.payload={mode:'daftar',name:name,phone:phone,email:email,pin:pin};
+    if(rs.s==='exists'){setAuthMode('masuk');authSay('Nomor ini sudah terdaftar. Silakan masuk.');return}
+    if(rs.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
+    if(rs.s==='otp'){AU.kind='reg';showOtp(rs.hint);return}
+    authSay('Belum bisa melanjutkan. Coba lagi.');return;
+  }
+  if(!hasTok()){await sendLoginOtp(phone,'login');return}
+  var p=$('#cPinIn').value;
+  if(!pinOk(p)){authSay('Masukkan PIN 6 angka. Perangkat baru? Ketuk "Pakai kode email".');$('#cPinIn').focus();return}
+  var r=await store.loginPin(phone,p);
+  AU.phone=phone;
+  if(r.s==='ok'){finishLogin(r.code);return}
+  if(r.s==='bad'){
+    authSay(r.left>0?'PIN salah. Sisa percobaan: '+r.left+'.':'PIN salah. Percobaan habis, coba lagi 15 menit lagi atau ketuk Lupa PIN.');
+    $('#cPinIn').value='';shake($('#authForm'));$('#cPinIn').focus();return;
+  }
+  if(r.s==='new_device'){toast('Perangkat ini belum dikenal untuk nomor ini. Kode dikirim ke email.');$('#cPinIn').value='';await sendLoginOtp(phone,'login');return}
+  if(r.s==='none'){setAuthMode('daftar');authSay('Nomor ini belum terdaftar. Isi data di bawah untuk membuat kartu.');$('#nameIn').focus();return}
+  if(r.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
+  authSay('Belum bisa melanjutkan. Coba lagi.');
+}
+async function pinLink(purpose){
+  var phone=normPhone($('#phoneIn').value);
+  $('#authMsg').hidden=true;
+  if(phone.length<10||phone.length>15){authSay('Isi nomor WhatsApp dulu, lalu ketuk lagi.');$('#phoneIn').focus();return}
+  try{await sendLoginOtp(phone,purpose)}catch(err){authSay(gasErr(err))}
+}
+$('#forgotBtn').addEventListener('click',function(){pinLink('forgot')});
+$('#emailLoginBtn').addEventListener('click',function(){pinLink('login')});
+['#cPinIn','#cNewPin','#cNewPin2'].forEach(function(k){$(k).addEventListener('input',function(){this.value=this.value.replace(/\D/g,'').slice(0,6)})});
 $('#otpResend').addEventListener('click',async function(){
   var p=AU.payload;if(!p)return;var msg=$('#authMsg');
   msg.hidden=true;this.disabled=true;
   try{
-    var rs=p.mode==='daftar'?await store.regStart({name:p.name,phone:p.phone,email:p.email}):await store.loginStart(p.phone);
+    var rs=AU.kind==='reg'?await store.regStart({name:p.name,phone:p.phone,email:p.email,pin:p.pin}):await store.loginStart(p.phone,AU.kind);
     if(rs.s==='otp'){startResendTimer(45);toast('Kode baru dikirim.')}else{this.disabled=false}
   }catch(err){msg.textContent=gasErr(err);msg.hidden=false;startResendTimer(10)}
 });
-$('#otpBack').addEventListener('click',function(){authStep('start');renderAuth();$('#authMsg').hidden=true;$('#phoneIn').focus()});
+$('#otpBack').addEventListener('click',function(){authStep('start');renderAuth();gasModeSync();$('#authMsg').hidden=true;$('#phoneIn').focus()});
 async function gasGate(gate){
   var kasir=gate==='kasir';
   var pinEl=kasir?$('#pinIn'):$('#mPinIn'),errEl=kasir?$('#pinErr'):$('#mPinErr'),form=kasir?$('#gateForm'):$('#mGateForm');
