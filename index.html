@@ -3058,6 +3058,145 @@ boot();
 })();
 </script>
 <script>
+/* Temmatics Card - ajakan pasang aplikasi (PWA).
+   Pelanggan baru: popup sekali saat pertama buka. Setelahnya: tombol transparan di bawah halaman masuk. */
+(function(){
+  if(!/^https?:$/.test(location.protocol))return;
+  if(/^#(kasir|manajemen)/.test(location.hash))return;
+  var ua=navigator.userAgent||'';
+  var ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var android=/Android/.test(ua);
+  if(!ios&&!android)return;
+  function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+  function standalone(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}}
+  if(standalone()||ls('tm:installed'))return;
+
+  var dp=null,popup=null,sheet=null,btn=null;
+  var inApp=/FBAN|FBAV|Instagram|Line\/|MicroMessenger|musical_ly|TikTok|Snapchat|Twitter/i.test(ua);
+  var NAMA='Temmatics Card';
+
+  var css='\
+.ins-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:clamp(10px,3vh,26px);padding:11px 14px;background:transparent;border:1px solid var(--line,#DBE1F0);border-radius:12px;color:var(--stamp,#072D78);font:600 14px/1.2 var(--f,system-ui);cursor:pointer}\
+.ins-btn:active{background:var(--surface,#F5F7FC)}\
+.ins-btn svg{width:16px;height:16px;flex:none}\
+.ins-back{position:fixed;inset:0;z-index:9999;background:rgba(7,45,120,.38);display:flex;align-items:flex-end;justify-content:center;animation:insfade .2s ease}\
+.ins-sheet{width:min(100%,440px);background:var(--paper,#fff);border-radius:20px 20px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;text-align:center;animation:insup .26s cubic-bezier(.2,.8,.2,1);max-height:92vh;overflow:auto;font-family:var(--f,system-ui);color:var(--ink,#0A1F52)}\
+.ins-sheet:focus{outline:none}\
+.ins-sheet button:focus-visible{outline:2px solid var(--token,#DD7C2E);outline-offset:2px}\
+.ins-ico{width:60px;height:60px;border-radius:15px;border:1px solid var(--line,#DBE1F0);justify-self:center;display:block}\
+.ins-sheet h2{margin:0;font-size:19px;line-height:1.25}\
+.ins-sheet p{margin:0;font-size:14px;line-height:1.5;color:var(--muted,#58648A);justify-self:center;max-width:32ch}\
+.ins-sheet .ins-go{border:0;border-radius:12px;padding:13px 14px;font:700 15px var(--f,system-ui);background:var(--stamp,#072D78);color:var(--on-stamp,#fff);cursor:pointer}\
+.ins-sheet .ins-later{background:none;border:0;padding:8px;font:600 13.5px var(--f,system-ui);color:var(--muted,#58648A);cursor:pointer}\
+.ins-steps{list-style:none;margin:2px 0 0;padding:0;display:grid;gap:8px;text-align:left}\
+.ins-steps li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;font-size:14px;line-height:1.45;background:var(--surface,#F5F7FC);border:1px solid var(--line,#DBE1F0);border-radius:12px;padding:10px 12px}\
+.ins-steps b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--stamp,#072D78);color:#fff;font-size:12.5px}\
+.ins-steps svg{width:15px;height:15px;vertical-align:-2px}\
+.ins-note{font-size:12.5px!important}\
+@keyframes insup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}\
+@keyframes insfade{from{opacity:0}to{opacity:1}}';
+  var IC_ADD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>';
+  var IC_SHARE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m8 7.5 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1h-1"/></svg>';
+  var IC_MENU='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+
+  function el(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e}
+  function closePopup(){if(popup){popup.remove();popup=null;document.removeEventListener('keydown',onKey)}}
+  function onKey(e){if(e.key==='Escape')closePopup()}
+  function open(content){
+    closePopup();
+    popup=el('div','ins-back');popup.setAttribute('role','dialog');popup.setAttribute('aria-modal','true');popup.setAttribute('aria-label','Pasang '+NAMA);
+    sheet=el('div','ins-sheet');sheet.appendChild(content);popup.appendChild(sheet);
+    popup.addEventListener('click',function(e){if(e.target===popup)closePopup()});
+    document.addEventListener('keydown',onKey);
+    document.body.appendChild(popup);
+    sheet.tabIndex=-1;try{sheet.focus({preventScroll:true})}catch(e){}
+  }
+  function icon(){var i=el('img','ins-ico');i.src='icons/icon-192.png';i.alt='';return i}
+  function wrap(){var d=el('div');d.style.display='contents';return d}
+
+  function tawaran(){
+    var w=wrap();w.appendChild(icon());
+    w.appendChild(el('h2','','Pasang '+NAMA));
+    w.appendChild(el('p','','Simpan di layar utama supaya kartu cap kamu terbuka langsung dari ikon, tanpa mencari link lagi.'));
+    var go=el('button','ins-go','Pasang sekarang');go.type='button';go.addEventListener('click',pasang);
+    var lt=el('button','ins-later','Nanti saja');lt.type='button';lt.addEventListener('click',closePopup);
+    w.appendChild(go);w.appendChild(lt);open(w);
+  }
+
+  function salin(b){
+    var url=location.href.split('#')[0];
+    function ok(){b.textContent='Link disalin'}
+    try{navigator.clipboard.writeText(url).then(ok,fallback)}catch(e){fallback()}
+    function fallback(){try{var t=document.createElement('textarea');t.value=url;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();ok()}catch(e){b.textContent=url}}
+  }
+
+  function petunjuk(){
+    var w=wrap();w.appendChild(icon());
+    w.appendChild(el('h2','','Pasang '+NAMA));
+    var steps;
+    if(inApp){
+      w.appendChild(el('p','','Link ini terbuka di dalam aplikasi lain. Buka dulu di browser, lalu pasang.'));
+      steps=['Ketuk menu '+IC_MENU+' di pojok layar.','Pilih <b style="all:unset;font-weight:700">Buka di browser</b> (atau Buka di '+(ios?'Safari':'Chrome')+').','Di browser, ketuk tombol Pasang di halaman ini.'];
+    }else if(ios){
+      w.appendChild(el('p','','Di iPhone, pemasangan lewat menu Bagikan.'));
+      steps=['Ketuk tombol Bagikan '+IC_SHARE+' di bagian bawah (atau atas) layar.','Gulir lalu pilih <b style="all:unset;font-weight:700">Tambah ke Layar Utama</b>.','Ketuk <b style="all:unset;font-weight:700">Tambah</b>. Ikon muncul di layar utama.'];
+    }else{
+      w.appendChild(el('p','','Pemasangan lewat menu browser.'));
+      steps=['Ketuk menu '+IC_MENU+' di pojok kanan atas browser.','Pilih <b style="all:unset;font-weight:700">Instal aplikasi</b> atau <b style="all:unset;font-weight:700">Tambahkan ke layar utama</b>.','Ketuk <b style="all:unset;font-weight:700">Instal</b>. Ikon muncul di layar utama.'];
+    }
+    var ol=el('ol','ins-steps');
+    steps.forEach(function(t,i){ol.appendChild(el('li','','<b>'+(i+1)+'</b><span>'+t+'</span>'))});
+    w.appendChild(ol);
+    if(ios&&!inApp)w.appendChild(el('p','ins-note','Kalau menunya tidak ada, buka link ini di Safari.'));
+    var cp=el('button','ins-later','Salin link');cp.type='button';cp.addEventListener('click',function(){salin(cp)});
+    var tp=el('button','ins-go','Mengerti');tp.type='button';tp.addEventListener('click',closePopup);
+    w.appendChild(tp);w.appendChild(cp);open(w);
+  }
+
+  function pasang(){
+    if(dp){
+      var e=dp;dp=null;closePopup();
+      try{
+        e.prompt();
+        (e.userChoice||Promise.resolve({})).then(function(c){if(c&&c.outcome==='accepted')sudah()})
+      }catch(x){petunjuk()}
+      return;
+    }
+    petunjuk();
+  }
+  function sudah(){ls('tm:installed','1');closePopup();if(btn){btn.remove();btn=null}}
+
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e});
+  window.addEventListener('appinstalled',sudah);
+
+  function pasangTombol(){
+    var form=document.getElementById('authForm');
+    if(!form||!form.parentNode||btn)return;
+    var s=document.createElement('style');s.textContent=css;document.head.appendChild(s);
+    btn=el('button','ins-btn',IC_ADD+'<span>Install '+NAMA+' sekarang</span>');btn.type='button';
+    btn.addEventListener('click',pasang);
+    form.parentNode.appendChild(btn);
+  }
+
+  function mulai(){
+    pasangTombol();
+    if(ls('tm:seen'))return;
+    ls('tm:seen','1');
+    // Android: beri waktu singkat agar dialog pemasangan bawaan siap
+    var waited=0;
+    (function tunggu(){
+      if(document.hidden){return setTimeout(tunggu,400)}
+      if(android&&!dp&&waited<2400){waited+=300;return setTimeout(tunggu,300)}
+      if(!btn&&!document.getElementById('authForm'))return;
+      tawaran();
+    })();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(mulai,700)});
+  else setTimeout(mulai,700);
+})();
+
+</script>
+<script>
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
   window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
 }
