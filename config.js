@@ -2,5 +2,5 @@
 // Contoh: https://script.google.com/macros/s/AKfycb.../exec
 window.TEMMA = {
   backend: 'gas',
-  url: 'PASTE_ALAMAT_WEB_APP_DI_SINI'
+  url: 'https://script.google.com/macros/s/AKfycbzI02zyZrIJvUKJJbqixGJyycjgIb8I18e6rhi3ZSkhxEW5T2vKWutb7Ljib0XlOOcUXQ/exec'
 };
