@@ -1,0 +1,22 @@
+{
+  "id": "./",
+  "name": "Temmatics Card",
+  "short_name": "Temmatics",
+  "description": "Kartu cap digital Temma Kopi.",
+  "lang": "id",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Kasir", "url": "./#kasir", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Manajemen", "url": "./#manajemen", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]}
+  ]
+}
