@@ -933,7 +933,10 @@ function makeGasStore(url){
 
   function staffMode(){return !!(S.role&&tokS)}
   function curTok(){return staffMode()?tokS:tokM}
+  /* Kode brand ikut di setiap permintaan. Satu backend melayani semua brand
+     di bawah ACK Group, dan kode inilah yang menentukan data siapa yang dibuka. */
   function post(o){
+    o.b=(window.TEMMA&&window.TEMMA.brand)||'TM';
     return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o),redirect:'follow'})
       .then(function(r){return r.json()});
   }
@@ -1169,7 +1172,7 @@ function makeGasStore(url){
     if(r.ok===false)throw fail(r);return r;
   };
   api.regStart=async function(o){
-    var r=await call({a:'reg.start',name:o.name,phone:o.phone,email:o.email,pin:o.pin},{tok:false});
+    var r=await call({a:'reg.start',name:o.name,phone:o.phone,email:o.email,pin:o.pin,cab:o.cab||''},{tok:false});
     if(r.ok===false)throw fail(r);return r;
   };
   api.regVerify=async function(phone,otp){
@@ -3003,6 +3006,7 @@ function authStep(st){
   var start=st==='start',otp=st==='otp',np=st==='newpin',daftar=S.authMode==='daftar',tok=hasTok();
   var forgot=otp&&AU.kind==='forgot';
   $('#nameField').hidden=!(start&&daftar);
+  if($('#cabangField'))$('#cabangField').hidden=!(start&&daftar);
   $('#emailField').hidden=!(start&&daftar);
   $('#phoneField').hidden=!start;
   $('#otpField').hidden=!otp;$('#otpLinks').hidden=!otp;
@@ -3028,6 +3032,8 @@ function gasTitles(){
   }
   $('#authSub').hidden=!$('#authSub').textContent;
 }
+/* Cabang tempat mendaftar. Brand tanpa cabang tidak punya kolom ini. */
+function cabPilih(){var e=$('#cabangIn');return e?e.value:''}
 function gasModeSync(){
   AU.step='start';authStep('start');gasTitles();
   if(S.authMode==='masuk'){var ph=ls.get('lc:ph');if(ph&&!$('#phoneIn').value)$('#phoneIn').value=ph}
@@ -3112,8 +3118,8 @@ async function doStart(){
     if(!name){authSay('Nama wajib diisi.');return}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){authSay('Email belum benar. Dipakai untuk kode verifikasi.');return}
     var pin=checkNewPins();if(!pin)return;
-    var rs=await store.regStart({name:name,phone:phone,email:email,pin:pin});
-    AU.phone=phone;AU.payload={mode:'daftar',name:name,phone:phone,email:email,pin:pin};
+    var rs=await store.regStart({name:name,phone:phone,email:email,pin:pin,cab:cabPilih()});
+    AU.phone=phone;AU.payload={mode:'daftar',name:name,phone:phone,email:email,pin:pin,cab:cabPilih()};
     if(rs.s==='exists'){setAuthMode('masuk');authSay('Nomor ini sudah terdaftar. Silakan masuk.');return}
     if(rs.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
     if(rs.s==='otp'){AU.kind='reg';showOtp(rs.hint);return}
@@ -3147,7 +3153,7 @@ $('#otpResend').addEventListener('click',async function(){
   var p=AU.payload;if(!p)return;var msg=$('#authMsg');
   msg.hidden=true;this.disabled=true;
   try{
-    var rs=AU.kind==='reg'?await store.regStart({name:p.name,phone:p.phone,email:p.email,pin:p.pin}):await store.loginStart(p.phone,AU.kind);
+    var rs=AU.kind==='reg'?await store.regStart({name:p.name,phone:p.phone,email:p.email,pin:p.pin,cab:p.cab||''}):await store.loginStart(p.phone,AU.kind);
     if(rs.s==='otp'){startResendTimer(45);toast('Kode baru dikirim.')}else{this.disabled=false}
   }catch(err){msg.textContent=gasErr(err);msg.hidden=false;startResendTimer(10)}
 });

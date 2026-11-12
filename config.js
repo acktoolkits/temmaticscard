@@ -1,6 +1,9 @@
-// Isi url dengan alamat Web app Apps Script (berakhiran /exec).
-// Contoh: https://script.google.com/macros/s/AKfycb.../exec
+/* Temmatics Card — satu-satunya berkas yang berbeda antar brand.
+   url: alamat Web app Apps Script, sama persis untuk semua brand.
+   brand: kode brand, menentukan data siapa yang dibuka di backend.
+   Temma tidak memakai kode cabang pada ID kartu. */
 window.TEMMA = {
   backend: 'gas',
-  url: 'https://script.google.com/macros/s/AKfycbzI02zyZrIJvUKJJbqixGJyycjgIb8I18e6rhi3ZSkhxEW5T2vKWutb7Ljib0XlOOcUXQ/exec'
+  brand: 'TM',
+  url: 'https://script.google.com/macros/s/GANTI_DENGAN_ALAMAT_EXEC_KAMU/exec'
 };
