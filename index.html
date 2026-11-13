@@ -877,7 +877,7 @@ var reduceMotion=function(){return window.matchMedia&&window.matchMedia('(prefer
 var LV=10;
 function defTier(){return {mids:[{level:5,name:'Gratis 1 add-on pilihan'}],final:'Gratis 1 minuman pilihan'}}
 var DEFAULTS={brand:'Temma Kopi',rupiahPerToken:25000,startLevel:2,tiers:[defTier(),defTier(),defTier(),defTier()],pin:'',mgmtPin:'',maxPerTx:10,manualMax:3,designEvents:[],feedbackUrl:'',reviewUrl:''};
-function store_(kind){return {get:function(k){try{return window[kind].getItem(k)}catch(e){return null}},set:function(k,v){try{window[kind].setItem(k,v)}catch(e){}},del:function(k){try{window[kind].removeItem(k)}catch(e){}}}}
+function store_(kind){var B=((window.TEMMA&&window.TEMMA.brand)||'TM').toLowerCase().slice(0,2);var K=function(k){return B!=='tm'&&k.indexOf('lc:')===0?'lc:'+B+':'+k.slice(3):k};return {get:function(k){try{return window[kind].getItem(K(k))}catch(e){return null}},set:function(k,v){try{window[kind].setItem(K(k),v)}catch(e){}},del:function(k){try{window[kind].removeItem(K(k))}catch(e){}}}}
 var ls=store_('localStorage'), ss=store_('sessionStorage');
 
 var S={role:(function(){var r=ss.get('lc:role');return r==='kasir'||r==='mgmt'?r:null})(),staff:ss.get('lc:staff')||'',tab:ss.get('lc:tab')||'ringkasan',designs:{},dz:{docs:{},subs:{},urls:{}},dd:null,period:'7',tierF:'all',typeF:'all',side:'aktivitas',mSel:null,cfg:Object.assign({},DEFAULTS),mode:null,me:null,member:null,members:[],picked:null,busy:false,animating:false,cust:'loading',authMode:'masuk',sheet:null,voucherLevel:null,vtoken:0};

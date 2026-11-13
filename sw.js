@@ -1,5 +1,5 @@
 /* Temmatics Card - service worker. VERSI diganti otomatis oleh build. */
-var VERSI='903b2bd14d';
+var VERSI='7456c5a48c';
 var CACHE_INTI='temmatics-inti-'+VERSI;
 var CACHE_LUAR='temmatics-luar-v1';
 var INTI=['./','index.html','config.js','manifest.json','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/favicon-32.png'];
