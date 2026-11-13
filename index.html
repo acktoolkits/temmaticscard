@@ -75,6 +75,7 @@ input,select{width:100%;min-width:0;border:1px solid var(--line);background:var(
 .auth .panel{padding:14px;gap:10px;border-radius:14px}
 .auth .field label{font-size:12.5px}
 .auth input{padding:10px 12px;font-size:15px}
+.phonehint{margin:-6px 0 2px;font-size:12.5px;line-height:1.35;color:#c0262d}.phonehint[hidden]{display:none}
 .pinin{letter-spacing:.3em;font-size:18px!important;text-align:center}
 .otplinks{display:flex;justify-content:space-between;gap:10px;margin:0}
 .otplinks .linkbtn{background:none;border:0;padding:4px 0;font-size:13.5px;font-weight:600;color:var(--stamp);cursor:pointer}
@@ -418,7 +419,7 @@ body.mg{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <p class="muted" id="authSub"></p>
       </div>
       <div class="seg" role="tablist" aria-label="Masuk atau daftar">
-        <button type="button" role="tab" id="m-masuk" aria-selected="true">Masuk</button>
+        <button type="button" role="tab" id="m-masuk" aria-selected="true">Login</button>
         <button type="button" role="tab" id="m-daftar" aria-selected="false">Daftar</button>
       </div>
       <form class="panel" id="authForm" novalidate>
@@ -455,6 +456,7 @@ body.mg{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         </div>
         <p class="otplinks" id="pinLinks" hidden><button type="button" class="linkbtn" id="forgotBtn">Lupa PIN?</button><button type="button" class="linkbtn" id="emailLoginBtn">Pakai kode email</button></p>
         <p class="otplinks" id="otpLinks" hidden><button type="button" class="linkbtn" id="otpResend">Kirim ulang kode</button><button type="button" class="linkbtn" id="otpBack">Ganti nomor</button></p>
+        <p class="phonehint" id="phoneHint" role="alert" hidden></p>
         <p class="err" id="authMsg" hidden></p>
         <button class="btn big" id="authBtn" type="submit">Masuk</button>
       </form>
@@ -1407,7 +1409,7 @@ window.addEventListener('hashchange',applyView);
 function setAuthMode(m){
   S.authMode=m;
   $('#m-masuk').setAttribute('aria-selected',String(m==='masuk'));$('#m-daftar').setAttribute('aria-selected',String(m==='daftar'));
-  $('#nameField').hidden=m!=='daftar';$('#authBtn').textContent=m==='masuk'?'Masuk':'Buat kartu member';
+  $('#nameField').hidden=m!=='daftar';$('#authBtn').textContent=m==='masuk'?'Login':'Buat kartu member';
   $('#authMsg').hidden=true;renderAuth();
   if(GAS_UI)gasModeSync();
 }
@@ -1417,7 +1419,8 @@ function renderAuth(){
   $('#authSub').textContent=S.authMode==='masuk'?'':'Daftar sekali, kartu member digitalmu langsung siap dipakai.';
   if(GAS_UI&&typeof gasTitles==='function')gasTitles();
 }
-$('#m-masuk').addEventListener('click',function(){setAuthMode('masuk')});
+$('#m-masuk').addEventListener('click',function(){var h=$('#phoneHint');if(h)h.hidden=true;setAuthMode('masuk')});
+$('#phoneIn').addEventListener('input',function(){var h=$('#phoneHint');if(h)h.hidden=true});
 $('#m-daftar').addEventListener('click',function(){setAuthMode('daftar')});
 $('#authForm').addEventListener('submit',async function(e){
   e.preventDefault();
@@ -3042,7 +3045,7 @@ function authStep(st){
   var showNew=(start&&daftar)||np||forgot;
   $('#cNewField').hidden=!showNew;$('#cNew2Field').hidden=!showNew;
   $('#cNewLbl').textContent=forgot?'PIN baru':'Buat PIN';
-  $('#authBtn').textContent=otp?(forgot?'Atur PIN dan masuk':'Verifikasi'):np?'Simpan PIN dan masuk':daftar?'Buat kartu member':(tok?'Masuk':'Kirim kode ke email');
+  $('#authBtn').textContent=otp?(forgot?'Atur PIN dan masuk':'Verifikasi'):np?'Simpan PIN dan masuk':daftar?'Buat kartu member':'Login';
   if(start){clearInterval(AU.resendT);$('#otpIn').value=''}
 }
 function gasTitles(){
@@ -3093,10 +3096,24 @@ function checkNewPins(){
 function finishLogin(code){
   rememberPhone();AU.payload=null;clearAuthPins();authStep('start');openMember(code);
 }
+/* nomor belum terdaftar: pesan merah kecil di bawah kolom nomor, 0,5 detik kemudian pindah ke tab Daftar */
+function hintTelp(t){var h=$('#phoneHint');if(!h)return;h.textContent=t||'';h.hidden=!t}
+function belumTerdaftar(){
+  $('#authMsg').hidden=true;
+  hintTelp('Anda belum terdaftar, gabung member sekarang yuk!');
+  var ph=$('#phoneIn').value;
+  clearTimeout(AU.pindahT);
+  AU.pindahT=setTimeout(function(){
+    if(S.authMode!=='masuk'||AU.step!=='start')return;
+    setAuthMode('daftar');gasModeSync();hintTelp('Anda belum terdaftar, gabung member sekarang yuk!');
+    if(!$('#phoneIn').value)$('#phoneIn').value=ph;
+    $('#nameIn').focus();
+  },500);
+}
 async function sendLoginOtp(phone,purpose){
   var rs=await store.loginStart(phone,purpose);
   AU.phone=phone;AU.payload={mode:'masuk',phone:phone};
-  if(rs.s==='none'){setAuthMode('daftar');authSay('Nomor ini belum terdaftar. Isi data di bawah untuk membuat kartu.');$('#nameIn').focus();return}
+  if(rs.s==='none'){belumTerdaftar();return}
   if(rs.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
   if(rs.s==='noemail'){authSay('Kartu ini belum punya email terdaftar. Hubungi kasir Temma.');return}
   if(rs.s==='otp'){AU.kind=purpose;showOtp(rs.hint);return}
@@ -3104,7 +3121,7 @@ async function sendLoginOtp(phone,purpose){
 }
 async function gasAuth(){
   var btn=$('#authBtn');
-  $('#authMsg').hidden=true;
+  $('#authMsg').hidden=true;hintTelp('');
   var sc=/^\*([12])#$/.exec($('#phoneIn').value.trim());
   if(AU.step==='start'&&sc){$('#phoneIn').value='';location.hash=sc[1]==='1'?'#kasir':'#manajemen';return}
   btn.disabled=true;
@@ -3163,7 +3180,7 @@ async function doStart(){
     $('#cPinIn').value='';shake($('#authForm'));$('#cPinIn').focus();return;
   }
   if(r.s==='new_device'){$('#cPinIn').value='';await sendLoginOtp(phone,'login');return}
-  if(r.s==='none'){setAuthMode('daftar');authSay('Nomor ini belum terdaftar. Isi data di bawah untuk membuat kartu.');$('#nameIn').focus();return}
+  if(r.s==='none'){belumTerdaftar();return}
   if(r.s==='inactive'){authSay('Kartu dengan nomor ini sedang dinonaktifkan. Hubungi kasir Temma untuk informasi lebih lanjut.');return}
   authSay('Belum bisa melanjutkan. Coba lagi.');
 }
