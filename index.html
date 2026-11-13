@@ -3204,8 +3204,12 @@ async function gasGate(gate){
 /* ---------- promo dan voucher ---------- */
 var PR={promos:[],vouchers:[],aktif:0,ok:false,last:0,poster:{},queue:[],showing:null,loading:false};
 function prKey(){return 'pr:seen:'+((window.TEMMA&&window.TEMMA.brand)||'TM')+':'+(S.me||'')}
-function prSeen(){try{return JSON.parse(ls.get(prKey())||'[]')}catch(e){return []}}
-function prMark(id){var l=prSeen();if(l.indexOf(id)<0){l.push(id);ls.set(prKey(),JSON.stringify(l.slice(-80)))}}
+function prSeen(){
+  try{var o=JSON.parse(ls.get(prKey())||'{}');
+    if(Array.isArray(o)){var n={};o.forEach(function(i){n[i]=1});o=n}
+    return o&&typeof o==='object'?o:{}}catch(e){return {}}
+}
+function prMark(id){var o=prSeen(),ks=Object.keys(o);if(ks.length>80)delete o[ks[0]];o[id]=Date.now();ls.set(prKey(),JSON.stringify(o))}
 function prTgl(s){
   var d=new Date(String(s)+'T00:00:00');
   return isNaN(d)?String(s||''):d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
@@ -3262,7 +3266,14 @@ async function prTick(force){
     if(r[1]){PR.vouchers=r[1].vouchers||[];PR.aktif=r[1].aktif||0;PR.ok=true}
     prRender();
     var seen=prSeen();
-    PR.queue=PR.promos.filter(function(p){return seen.indexOf(p.id)<0&&!(PR.showing&&PR.showing.id===p.id)});
+    var baru=PR.promos.filter(function(p){return !seen[p.id]&&!(PR.showing&&PR.showing.id===p.id)});
+    /* promo yang sudah dilihat muncul lagi satu kali sehari (yang terbaru saja), selama masih aktif */
+    var ulang=[];
+    if(!baru.length&&!PR.showing&&PR.promos.length){
+      var lp=PR.promos.slice().sort(function(a,b){return (b.updatedAt||0)-(a.updatedAt||0)})[0];
+      if(Date.now()-(seen[lp.id]||0)>86400000)ulang=[lp];
+    }
+    PR.queue=baru.concat(ulang);
     prNext();
   }catch(e){}
   finally{PR.loading=false}
