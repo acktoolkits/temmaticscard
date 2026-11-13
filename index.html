@@ -83,7 +83,17 @@ input,select{width:100%;min-width:0;border:1px solid var(--line);background:var(
 
 /* ---------- akun pelanggan ---------- */
 .stage{width:100%;max-width:400px;margin:0 auto;display:grid;gap:16px}
-.pillrow{display:flex;justify-content:flex-end}
+.pillrow{display:flex;justify-content:flex-end;gap:8px}
+.token.vouch{cursor:pointer}
+.token.vouch .coin{background:var(--ink,#222);color:var(--surface,#fff)}
+.vlist{display:grid;gap:8px}.vitem{display:flex;justify-content:space-between;gap:10px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.vitem.off{opacity:.55}.vitem b{display:block}.vitem small{display:block;color:var(--muted);font-size:13px}.vcode{text-align:right}.vcode code{display:block;font:700 14px/1.2 monospace;letter-spacing:.04em}.vcode span{font-size:12px;color:var(--muted)}
+.promopop{position:fixed;inset:0;z-index:90;background:rgba(5,12,20,.62);display:grid;place-items:center;padding:16px}.promopop[hidden]{display:none}
+.pp-card{position:relative;width:min(100%,380px);max-height:92dvh;overflow:auto;background:var(--surface);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.pp-img{display:block;width:100%;height:auto;max-height:70dvh;object-fit:contain;background:#000;border-radius:18px 18px 0 0}.pp-img[hidden]{display:none}
+.pp-body{padding:14px 16px 16px;display:grid;gap:4px}.pp-t{margin:0;font-size:18px}.pp-d{margin:0;color:var(--muted);font-size:14px;white-space:pre-line}.pp-p{margin:0;font-size:12.5px;color:var(--muted)}
+.promopop.teks .pp-body{padding-top:44px}
+.pp-x{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:22px;line-height:1;cursor:pointer;z-index:2}
+
 #view-mine:not([hidden]){display:grid;align-items:center;min-height:calc(100dvh - 90px)}
 .token{display:flex;align-items:center;gap:7px;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 11px 3px 3px}
 .token .coin{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--token);color:var(--token-ink);display:grid;place-items:center;font:800 12px/1 var(--f);font-variant-numeric:tabular-nums}
@@ -453,7 +463,7 @@ body.mg{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   <section id="view-mine" hidden>
     <div class="stage">
-      <div class="pillrow"><div class="token" id="tokenChip" aria-live="polite"><span class="coin" id="tokenNum">0</span><span class="lbl">pouring</span></div></div>
+      <div class="pillrow"><div class="token vouch" id="vouchChip" role="button" tabindex="0" hidden aria-label="Voucher aktif"><span class="coin" id="vouchNum">0</span><span class="lbl">voucher</span></div><div class="token" id="tokenChip" aria-live="polite"><span class="coin" id="tokenNum">0</span><span class="lbl">pouring</span></div></div>
       <div class="cardstage" id="cardStage"><div class="glow"></div><div class="bob"><div class="tiltel" id="tiltEl"><div class="flip" id="flip" role="button" tabindex="0" aria-pressed="false" aria-label="Kartu member. Ketuk untuk membalik kartu."><div class="flip-in" id="flipIn"></div></div></div></div></div>
       <div class="dots" aria-hidden="true"><i id="dotF" class="on"></i><i id="dotB"></i></div>
       <div class="btns">
@@ -529,6 +539,7 @@ body.mg{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
                   <div><dt>Total belanja</dt><dd id="pSpent"></dd></div>
                 </dl>
                 <div id="claims" style="display:grid;gap:8px"></div>
+                <div id="kVouchers" style="display:grid;gap:8px"></div>
                 <div class="field">
                   <label for="amount">Total belanja (Rp)</label>
                   <input id="amount" inputmode="numeric" autocomplete="off" placeholder="0">
@@ -812,6 +823,10 @@ body.mg{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     </div>
     <div id="sheetContent"></div>
   </div>
+</div>
+
+<div id="promoPop" class="promopop" hidden role="dialog" aria-modal="true" aria-label="Promo">
+  <div class="pp-card"><button class="pp-x" type="button" data-pclose aria-label="Tutup">×</button><img class="pp-img" alt="Poster promo" hidden><div class="pp-body"><h3 class="pp-t"></h3><p class="pp-d"></p><p class="pp-p"></p></div></div>
 </div>
 
 <div id="voucher" class="sheet" hidden>
@@ -1203,6 +1218,12 @@ function makeGasStore(url){
     return r;
   };
   api.kick=kick;
+  /* ---- promo dan voucher (backend bersama ACK Group) ---- */
+  api.promoList=async function(){var r=await call({a:'promo.list'});return r&&r.ok!==false?(r.promos||[]):null};
+  api.promoPoster=async function(id){var r=await call({a:'promo.poster',id:id});return r&&r.ok!==false?(r.poster||''):''};
+  api.voucherMine=async function(){var r=await call({a:'voucher.mine'});return r&&r.ok!==false?r:null};
+  api.voucherByMember=async function(code){var r=await call({a:'voucher.byMember',code:code});return r&&r.ok!==false?(r.vouchers||[]):null};
+  api.voucherUse=async function(id){return call({a:'voucher.use',id:id})};
   return api;
 }
 
@@ -1926,9 +1947,14 @@ function renderSheet(){
   if(v==='menu'){
     t.textContent='Menu';
     c.innerHTML='<div class="mlist">'+
+      '<button class="mitem" type="button" data-go="promo"><b>Promo aktif</b><small>'+(PR.promos.length?PR.promos.length+' promo untuk kamu':'Belum ada promo')+'</small></button>'+
+      '<button class="mitem" type="button" data-go="voucher"><b>Voucher</b><small>'+(PR.aktif?PR.aktif+' voucher aktif':'Belum ada voucher aktif')+'</small></button>'+
       '<button class="mitem" type="button" data-go="riwayat"><b>Riwayat</b><small>Aktivitas kartu kamu</small></button>'+
       '<button class="mitem" type="button" data-go="feedback"><b>Feedback</b><small>Beri masukan atau ulasan</small></button>'+
+      (window.TM_INSTALL&&window.TM_INSTALL.bisa()?'<button class="mitem" type="button" data-act="install"><b>Pasang aplikasi</b><small>Tambahkan ke layar utama</small></button>':'')+
       '<button class="mitem quiet" type="button" data-act="logout"><b>Keluar</b><small>Ganti nomor atau kartu</small></button></div>';
+  }else if(v==='promo'){renderPromoSheet(t,c);
+  }else if(v==='voucher'){renderVoucherSheet(t,c);
   }else if(v==='riwayat'){
     t.textContent='Riwayat';
     var lg=(S.member&&S.member.log)||[];
@@ -2204,6 +2230,7 @@ function renderPicked(){
   $('#pStamps').textContent=st+'/'+LV;
   $('#pTokens').textContent=m.tokens||0;
   $('#pSpent').textContent=rp(m.totalSpent);
+  if(GAS_UI&&typeof kasirVoucher==='function')kasirVoucher(m);
   $('#claims').innerHTML=pend.map(function(l){
     var lock10=l===LV&&pend.some(function(x){return x<LV});
     return '<div class="banner"><span>Reward level '+l+'<span class="sub">'+esc(rewardFor(l,m))+(l===LV?(tierIdx(m)<TIERS.length-1?' · server dikosongkan, naik ke '+TIERS[tierIdx(m)+1].n+' member':' · server dikosongkan, siklus baru dimulai'):'')+'</span></span>'+
@@ -3173,6 +3200,138 @@ async function gasGate(gate){
   }
 }
 
+
+/* ---------- promo dan voucher ---------- */
+var PR={promos:[],vouchers:[],aktif:0,ok:false,last:0,poster:{},queue:[],showing:null,loading:false};
+function prKey(){return 'pr:seen:'+((window.TEMMA&&window.TEMMA.brand)||'TM')+':'+(S.me||'')}
+function prSeen(){try{return JSON.parse(ls.get(prKey())||'[]')}catch(e){return []}}
+function prMark(id){var l=prSeen();if(l.indexOf(id)<0){l.push(id);ls.set(prKey(),JSON.stringify(l.slice(-80)))}}
+function prTgl(s){
+  var d=new Date(String(s)+'T00:00:00');
+  return isNaN(d)?String(s||''):d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+}
+function prPeriode(p){
+  if(p.selesai)return 'Berlaku sampai '+prTgl(p.selesai);
+  if(p.mulai)return 'Mulai '+prTgl(p.mulai);
+  return '';
+}
+function prBusy(){return !$('#sheet').hidden||!$('#voucher').hidden||S.animating||document.hidden||S.cust!=='mine'}
+function prRender(){
+  var c=$('#vouchChip');
+  if(c&&PR.ok){c.hidden=false;$('#vouchNum').textContent=PR.aktif}
+  if(!$('#sheet').hidden&&(S.sheet==='menu'||S.sheet==='promo'||S.sheet==='voucher'))renderSheet();
+}
+async function prPoster(p){
+  var k=p.id+':'+p.updatedAt;
+  if(PR.poster[k]!==undefined)return PR.poster[k];
+  var u='';
+  try{u=await store.promoPoster(p.id)}catch(e){}
+  PR.poster[k]=u||'';
+  return PR.poster[k];
+}
+async function prShow(p){
+  PR.showing=p;prMark(p.id);
+  var u=p.poster?await prPoster(p):'';
+  if(!PR.showing||PR.showing.id!==p.id)return;
+  var pop=$('#promoPop'),img=$('.pp-img',pop);
+  $('.pp-t',pop).textContent=p.judul;
+  $('.pp-d',pop).textContent=p.isi||'';
+  $('.pp-p',pop).textContent=prPeriode(p);
+  if(u){img.src=u;img.hidden=false}else{img.removeAttribute('src');img.hidden=true}
+  pop.classList.toggle('teks',!u);
+  pop.hidden=false;
+  try{$('.pp-x',pop).focus({preventScroll:true})}catch(e){}
+}
+function prClose(){
+  var pop=$('#promoPop');if(!pop||pop.hidden)return;
+  pop.hidden=true;PR.showing=null;
+  setTimeout(prNext,500);
+}
+function prNext(){
+  if(PR.showing||prBusy()||!PR.queue.length)return;
+  prShow(PR.queue.shift());
+}
+async function prTick(force){
+  if(!GAS_UI||!store||!store.promoList||S.cust!=='mine'||PR.loading)return;
+  if(PR.me!==S.me){PR.me=S.me;PR.ok=false;PR.aktif=0;PR.promos=[];PR.vouchers=[];PR.queue=[];PR.showing=null;var cc=$('#vouchChip');if(cc)cc.hidden=true}
+  var now=Date.now();if(!force&&now-PR.last<(PR.ok?40000:4000))return;
+  PR.loading=true;PR.last=now;
+  try{
+    var r=await Promise.all([store.promoList(),store.voucherMine()]);
+    if(r[0])PR.promos=r[0];
+    if(r[1]){PR.vouchers=r[1].vouchers||[];PR.aktif=r[1].aktif||0;PR.ok=true}
+    prRender();
+    var seen=prSeen();
+    PR.queue=PR.promos.filter(function(p){return seen.indexOf(p.id)<0&&!(PR.showing&&PR.showing.id===p.id)});
+    prNext();
+  }catch(e){}
+  finally{PR.loading=false}
+}
+function renderPromoSheet(t,c){
+  t.textContent='Promo aktif';
+  if(!PR.promos.length){c.innerHTML='<p class="empty">Belum ada promo aktif. Cek lagi nanti.</p>';return}
+  c.innerHTML='<div class="mlist">'+PR.promos.map(function(p){
+    var per=prPeriode(p);
+    return '<button class="mitem" type="button" data-prshow="'+esc(p.id)+'"><b>'+esc(p.judul)+'</b><small>'+esc(p.isi||'Ketuk untuk melihat')+'</small>'+(per?'<small>'+esc(per)+'</small>':'')+'</button>';
+  }).join('')+'</div>';
+}
+function renderVoucherSheet(t,c){
+  t.textContent='Voucher';
+  if(!PR.vouchers.length){c.innerHTML='<p class="empty">Belum ada voucher. Voucher dari promo akan muncul di sini.</p>';return}
+  var nama={aktif:'Aktif',dipakai:'Sudah dipakai',kedaluwarsa:'Kedaluwarsa'};
+  c.innerHTML='<p class="sub" style="margin:0 0 10px">Tunjukkan kode ke kasir untuk memakai voucher.</p><div class="vlist">'+PR.vouchers.map(function(v){
+    return '<div class="vitem'+(v.status==='aktif'?'':' off')+'"><div><b>'+esc(v.judul)+'</b>'+(v.isi?'<small>'+esc(v.isi)+'</small>':'')+
+      '<small>'+(v.berlaku?'Berlaku sampai '+esc(prTgl(v.berlaku)):'Tanpa batas waktu')+'</small></div>'+
+      '<div class="vcode"><code>'+esc(v.id)+'</code><span>'+esc(nama[v.status]||v.status)+'</span></div></div>';
+  }).join('')+'</div>';
+}
+(function(){
+  var pop=$('#promoPop');if(!pop)return;
+  pop.addEventListener('click',function(e){if(e.target===pop||e.target.closest('[data-pclose]'))prClose()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!pop.hidden)prClose()});
+  var ch=$('#vouchChip');
+  if(ch)ch.addEventListener('click',function(){openSheet('voucher');prTick(true)});
+  $('#sheet').addEventListener('click',function(e){
+    var s=e.target.closest('[data-prshow]');
+    if(s){var p=PR.promos.filter(function(x){return x.id===s.dataset.prshow})[0];if(p){PR.queue=[];PR.showing=null;prShow(p)}return}
+    if(e.target.closest('[data-act="install"]')){closeSheet(true);if(window.TM_INSTALL)window.TM_INSTALL.pasang()}
+    if(e.target.closest('[data-go="promo"],[data-go="voucher"]'))prTick(true);
+  },true);
+  if(GAS_UI){
+    setInterval(function(){prTick(false);prNext()},1500);
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)prTick(true)});
+  }
+})();
+
+/* kasir: voucher aktif milik member yang sedang dibuka */
+var KV={code:'',list:[],t:0,busy:false};
+function kasirVoucher(m){
+  var box=$('#kVouchers');if(!box||!GAS_UI||!store||!store.voucherByMember)return;
+  function lukis(){
+    box.innerHTML=KV.code===m.code&&KV.list.length?KV.list.map(function(v){
+      return '<div class="banner"><span>Voucher: '+esc(v.judul)+'<span class="sub">Kode '+esc(v.id)+(v.berlaku?' · sampai '+esc(prTgl(v.berlaku)):'')+'</span></span>'+
+        '<button class="btn" type="button" data-vpakai="'+esc(v.id)+'">Pakai voucher</button></div>';
+    }).join(''):'';
+  }
+  if(KV.code!==m.code){KV.code=m.code;KV.list=[];KV.t=0}
+  lukis();
+  if(KV.busy||Date.now()-KV.t<6000)return;
+  KV.busy=true;KV.t=Date.now();
+  store.voucherByMember(m.code).then(function(l){if(l&&KV.code===m.code){KV.list=l;lukis()}}).catch(function(){}).then(function(){KV.busy=false});
+}
+(function(){
+  var box=$('#kVouchers');if(!box)return;
+  box.addEventListener('click',function(e){
+    var b=e.target.closest('[data-vpakai]');if(!b)return;
+    armed(b,'Yakin pakai?',async function(){
+      var r=await store.voucherUse(b.dataset.vpakai);
+      if(r&&r.ok!==false){toast('Voucher dipakai.');KV.t=0;KV.list=KV.list.filter(function(v){return v.id!==b.dataset.vpakai});box.innerHTML='';
+        var m=S.members.filter(function(x){return x.code===S.picked})[0];if(m)kasirVoucher(m)}
+      else toast((r&&r.m)||'Voucher tidak bisa dipakai.');
+    });
+  });
+})();
+
 boot();
 })();
 </script>
@@ -3185,10 +3344,14 @@ boot();
   var ua=navigator.userAgent||'';
   var ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   var android=/Android/.test(ua);
-  if(!ios&&!android)return;
+  var mobile=ios||android;
+  var KP=(((window.TEMMA&&window.TEMMA.brand)||'TM')+'').toLowerCase().slice(0,2)+':';
+  var tersedia=false;
+  window.TM_INSTALL={bisa:function(){return tersedia},pasang:function(){}};
   function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
   function standalone(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}}
-  if(standalone()||ls('tm:installed'))return;
+  if(standalone()||ls(KP+'installed'))return;
+  tersedia=mobile;
 
   var dp=null,popup=null,sheet=null,btn=null;
   var inApp=/FBAN|FBAV|Instagram|Line\/|MicroMessenger|musical_ly|TikTok|Snapchat|Twitter/i.test(ua);
@@ -3283,14 +3446,15 @@ boot();
     }
     petunjuk();
   }
-  function sudah(){ls('tm:installed','1');closePopup();if(btn){btn.remove();btn=null}}
+  function sudah(){tersedia=false;ls(KP+'installed','1');closePopup();if(btn){btn.remove();btn=null}}
 
-  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e});
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;tersedia=true});
+  window.TM_INSTALL.pasang=function(){pasang()};
   window.addEventListener('appinstalled',sudah);
 
   function pasangTombol(){
     var form=document.getElementById('authForm');
-    if(!form||!form.parentNode||btn)return;
+    if(!mobile||!form||!form.parentNode||btn)return;
     var s=document.createElement('style');s.textContent=css;document.head.appendChild(s);
     btn=el('button','ins-btn',IC_ADD+'<span>Install '+NAMA+' sekarang</span>');btn.type='button';
     btn.addEventListener('click',pasang);
@@ -3299,8 +3463,8 @@ boot();
 
   function mulai(){
     pasangTombol();
-    if(ls('tm:seen'))return;
-    ls('tm:seen','1');
+    if(!mobile||ls(KP+'seen'))return;
+    ls(KP+'seen','1');
     // Android: beri waktu singkat agar dialog pemasangan bawaan siap
     var waited=0;
     (function tunggu(){
